@@ -19,7 +19,7 @@ int main() {
   const cuda::gpu_mat<int> map_y{3, 3, y_data.data(), s};
 
 
-  remap(input, output, map_x, map_y, s);
+  remap(input, output, map_x, map_y, 0, 0, 0.f, s);
 
 
   output.download(s);
