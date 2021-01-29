@@ -58,7 +58,7 @@ void remap(const gpu_mat<IOType> & input,
              "map_x/y and input has different sizes");
 
   if (input.width() != output.width() || input.height() != output.height()) {
-    output = gpu_mat<IOType>(input.height(), input.width());
+    output = gpu_mat<IOType>(input.height(), input.width(), s);
   }
 
   if (input.empty()) {

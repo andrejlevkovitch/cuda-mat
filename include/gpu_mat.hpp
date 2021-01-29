@@ -92,14 +92,15 @@ class gpu_mat {
 public:
   using value_type = T;
 
-  gpu_mat(size_t        height,
-          size_t        width,
-          void *        data = nullptr,
-          const stream &s    = stream{0})
+  gpu_mat(size_t height, size_t width, void *data, const stream &s = stream{0})
       : host_{nullptr}
       , dev_{nullptr}
       , height_{height}
       , width_{width} {
+    if (this->empty()) {
+      return;
+    }
+
     try {
       size_t bytes = this->bytes();
       THROW_IF_ERR(cudaMalloc(&dev_, bytes));
@@ -136,6 +137,10 @@ public:
       , dev_{nullptr}
       , height_{height}
       , width_{width} {
+    if (this->empty()) {
+      return;
+    }
+
     try {
       size_t bytes = this->bytes();
       THROW_IF_ERR(cudaMalloc(&dev_, bytes));
@@ -149,17 +154,38 @@ public:
       throw;
     }
 
-    detail::fill<<<GET_GRID_DIM(*this), GET_BLOCK_DIM(*this)>>>(dev_,
-                                                                height_,
-                                                                width_,
-                                                                val);
+    detail::fill<<<GET_GRID_DIM(*this), GET_BLOCK_DIM(*this), 0, s.raw()>>>(
+        dev_,
+        height_,
+        width_,
+        val);
+  }
+
+  gpu_mat(size_t height = 0, size_t width = 0, const stream &s = stream{})
+      : host_{nullptr}
+      , dev_{nullptr}
+      , height_{height}
+      , width_{width} {
+    if (this->empty()) {
+      return;
+    }
+
+    try {
+      size_t bytes = this->bytes();
+      THROW_IF_ERR(cudaMalloc(&dev_, bytes));
+
+      if (s.is_default() == false) {
+        cudaHostAlloc(&host_, bytes, cudaHostAllocDefault);
+      }
+    } catch (std::exception &e) {
+      cudaFree(dev_);
+      cudaFreeHost(host_);
+      throw;
+    }
   }
 
   ~gpu_mat() {
-    if (host_) {
-      cudaFreeHost(host_);
-    }
-
+    cudaFreeHost(host_);
     cudaFree(dev_);
   }
 
