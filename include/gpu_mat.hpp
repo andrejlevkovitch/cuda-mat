@@ -11,23 +11,22 @@
 #include <cuda_runtime.h>
 
 
-#define BASE 32
+#define BLOCK_X           32
+#define BLOCK_Y           32
+#define THREADS_PER_BLOCK (BLOCK_X * BLOCK_Y)
+#define GRID_Y            32
 
-/**\brief calculate optimal grid for using in cuda kernel. We split matrix by
- * rows and every row split by elements: every row handles by separate block
- * that has separate threads for each element. So for calculate current row and
- * column in cuda function you need calculate current block and current thread.
- *
+/**\brief calculate optimal grid for using in cuda kernel
  * \note capacity of blocks can be more then capacity of rows in matrix
  */
 #define GET_GRID_DIM(mat)                                                      \
-  dim3((mat).height() / BASE + ((mat).height() % BASE ? 1 : 0), BASE)
-/**\brief calculate optiomal block size for using in cuda kernel
- *
+  dim3((mat).total() / (GRID_Y * THREADS_PER_BLOCK) +                          \
+           ((mat).total() % (GRID_Y * THREADS_PER_BLOCK) ? 1 : 0),             \
+       GRID_Y)
+/**\brief calculate optimal block size for using in cuda kernel
  * \note capacity of blocks can be more then capacity of rows in matrix
  */
-#define GET_BLOCK_DIM(mat)                                                     \
-  dim3((mat).width() / BASE + ((mat).width() % BASE ? 1 : 0), BASE)
+#define GET_BLOCK_DIM(mat) dim3(BLOCK_X, BLOCK_Y)
 
 /**\return number of current block
  * \note for gpu usage only
@@ -38,6 +37,13 @@
  */
 #define GET_THREAD() (threadIdx.y * blockDim.x + threadIdx.x)
 
+
+#define GET_ROW(mat_width)                                                     \
+  ((GET_BLOCK() * THREADS_PER_BLOCK + GET_THREAD()) / mat_width)
+#define GET_COL(mat_width)                                                     \
+  ((GET_BLOCK() * THREADS_PER_BLOCK + GET_THREAD()) % mat_width)
+
+
 /**\brief help macros, uses for check that row is inside the matrix, if row is
  * outside of the matrix, then return from function
  * \param mat gpu_mat_ptr
@@ -45,7 +51,7 @@
  * \note for gpu usage only
  */
 #define GET_ROW_OR_RETURN(mat, row_var)                                        \
-  row_var = GET_BLOCK();                                                       \
+  row_var = GET_ROW(mat.width());                                              \
   if (row_var >= mat.height()) {                                               \
     return;                                                                    \
   }
@@ -56,7 +62,7 @@
  * \note for gpu usage only
  */
 #define GET_COL_OR_RETURN(mat, col_var)                                        \
-  col_var = GET_THREAD();                                                      \
+  col_var = GET_COL(mat.width());                                              \
   if (col_var >= mat.width()) {                                                \
     return;                                                                    \
   }
@@ -67,8 +73,8 @@ namespace cuda {
 namespace detail {
 template <typename T>
 __global__ void fill(T *ptr, unsigned int height, unsigned int width, T val) {
-  unsigned int row = GET_BLOCK();
-  unsigned int col = GET_THREAD();
+  unsigned int row = GET_ROW(width);
+  unsigned int col = GET_COL(width);
 
   if (row >= height || col >= width) {
     return;
@@ -202,8 +208,8 @@ public:
     this->download(data, this->total());
   }
 
-  /**\brief download matrix from gpu to blocked host memory, you can get access
-   * to it by host_ptr
+  /**\brief download matrix from gpu to blocked host memory, you can get
+   * access to it by host_ptr
    */
   void download(const stream &s) {
     size_t total = this->total();
@@ -224,6 +230,10 @@ public:
 
   size_t total() const noexcept {
     return width_ * height_;
+  }
+
+  bool empty() const noexcept {
+    return this->total() == 0;
   }
 
   /**\brief allocated memory size
