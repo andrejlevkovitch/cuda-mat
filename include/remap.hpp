@@ -61,7 +61,11 @@ void remap(const gpu_mat<IOType> & input,
     output = gpu_mat<IOType>(input.height(), input.width());
   }
 
-  detail::remap<<<input.height(), input.width(), 0, s.raw()>>>(
+  if (input.empty()) {
+    return;
+  }
+
+  detail::remap<<<GET_GRID_DIM(input), GET_BLOCK_DIM(input), 0, s.raw()>>>(
       make_gpu_mat_ptr(input),
       make_gpu_mat_ptr(output),
       make_gpu_mat_ptr(map_x),
