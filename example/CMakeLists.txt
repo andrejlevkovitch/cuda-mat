@@ -12,3 +12,15 @@ add_example(simple      simple.cu)
 add_example(remap       remap.cu)
 add_example(remap_async remap_async.cu)
 add_example(warp_affine warp_affine.cu)
+
+
+find_package(OpenCV COMPONENTS core imgcodecs REQUIRED)
+
+add_executable(bend bend.cu)
+target_include_directories(bend PRIVATE
+  ${OpenCV_INCLUDE_DIRS}
+  )
+target_link_libraries(bend PRIVATE
+  ${PROJECT_NAME}
+  ${OpenCV_LIBS}
+  )
