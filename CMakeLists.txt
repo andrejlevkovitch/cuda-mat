@@ -10,9 +10,18 @@ include(cmake/doxygen.cmake)
 add_subdirectory(third-party)
 
 
+# XXX remove in future
+# need for inversing matricies
+find_package(OpenCV COMPONENTS core REQUIRED)
+
+
 add_library(${PROJECT_NAME} INTERFACE)
 target_include_directories(${PROJECT_NAME} INTERFACE
   include
+  ${OpenCV_INCLUDE_DIRS}
+  )
+target_link_libraries(${PROJECT_NAME} INTERFACE
+  ${OpenCV_LIBS}
   )
 
 

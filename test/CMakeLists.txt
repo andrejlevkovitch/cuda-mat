@@ -24,3 +24,4 @@ endmacro()
 
 
 catch2_test_register(test_remap remap.cu)
+catch2_test_register(test_warp warp.cu)
