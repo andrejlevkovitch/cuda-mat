@@ -136,6 +136,58 @@ TEST_CASE("warp", "[warp]") {
     }
   }
 
+  SECTION("test async warping") {
+    int height = GENERATE(3, 100, 512, 1024, 1153, 2048, 2049);
+    int width  = GENERATE(3, 100, 512, 1024, 1352, 2048, 2051);
+    int total  = width * height;
+
+    char border_value = 8;
+
+    std::random_device                  rd;
+    std::mt19937                        gen{rd()};
+    std::uniform_int_distribution<char> dist{-128, 127};
+
+    std::vector<char> input_data(total);
+    for (char &val : input_data) {
+      val = dist(gen);
+    }
+
+
+    cuda::stream        stream{1};
+    cuda::gpu_mat<char> input(height, width, input_data.data(), stream);
+    cuda::gpu_mat<char> output_async(height, width, stream);
+    cuda::gpu_mat<char> output_sync(height, width);
+
+
+    std::uniform_int_distribution<int> t_mat_val_dist{-10, 10};
+    cuda::affine_matrix                mat_a{{(float)t_mat_val_dist(gen),
+                               (float)t_mat_val_dist(gen),
+                               (float)t_mat_val_dist(gen),
+                               (float)t_mat_val_dist(gen),
+                               (float)t_mat_val_dist(gen),
+                               (float)t_mat_val_dist(gen)}};
+
+
+    cuda::warpAffine(input, output_async, mat_a, 0, 0, border_value, stream);
+    cuda::warpAffine(input, output_sync, mat_a, 0, 0, border_value);
+
+
+    output_async.download(stream);
+    stream.synchronize();
+
+
+    std::vector<char> output_data_async(output_async.total());
+    std::memcpy(output_data_async.data(),
+                output_async.host_ptr(),
+                output_data_async.size());
+
+    std::vector<char> output_data_sync(output_sync.total());
+    output_sync.download(output_data_sync.data());
+
+
+    REQUIRE(output_data_sync == output_data_async);
+  }
+
   // TODO add test for warping with rotaion matrix
   // TODO add test for complete perspective warping
 }
