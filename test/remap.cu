@@ -11,12 +11,11 @@
 
 TEST_CASE("remap", "[remap]") {
   SECTION("try remap empty matrix") {
-    cuda::gpu_mat<int> input{0, 0, 0};
-    cuda::gpu_mat<int> output{0, 0};
-    cuda::gpu_mat<int> x_map{0, 0};
-    cuda::gpu_mat<int> y_map{0, 0};
+    cuda::gpu_mat<int>  input{0, 0, 0};
+    cuda::gpu_mat<int>  output{0, 0};
+    cuda::gpu_mat<int2> map{0, 0};
 
-    cuda::remap(input, output, x_map, y_map);
+    cuda::remap(input, output, map);
 
     CHECK(output.total() == 0);
   }
@@ -31,12 +30,11 @@ TEST_CASE("remap", "[remap]") {
 
     cuda::gpu_mat<char> input(height, width);
     cuda::gpu_mat<char> output(0, 0);
-    cuda::gpu_mat<int>  x_map(height, width, -1);
-    cuda::gpu_mat<int>  y_map(height, width, -1);
+    cuda::gpu_mat<int2> map(height, width, {-1, -1});
 
 
     // XXX in this case all values in output will be equal to border_value
-    remap(input, output, x_map, y_map, 0, 0, border_value);
+    remap(input, output, map, 0, 0, border_value);
 
 
     std::vector<decltype(output)::value_type> output_v(total);
@@ -72,24 +70,21 @@ TEST_CASE("remap", "[remap]") {
       val = dist(gen);
     }
 
-    std::vector<int> x_map_data(total);
-    std::vector<int> y_map_data(total);
+    std::vector<int2> map_data(total);
     for (int row = 0; row < height; ++row) {
       for (int col = 0; col < width; ++col) {
-        int offset         = row * width + col;
-        y_map_data[offset] = row;
-        x_map_data[offset] = col;
+        int offset       = row * width + col;
+        map_data[offset] = make_int2(col, row);
       }
     }
 
 
     cuda::gpu_mat<char> input(height, width, input_data.data());
     cuda::gpu_mat<char> output(0, 0);
-    cuda::gpu_mat<int>  x_map(height, width, x_map_data.data());
-    cuda::gpu_mat<int>  y_map(height, width, y_map_data.data());
+    cuda::gpu_mat<int2> map(height, width, map_data.data());
 
 
-    remap(input, output, x_map, y_map, 0, 0, border_value);
+    remap(input, output, map, 0, 0, border_value);
 
 
     std::vector<char> output_data(total);
@@ -117,24 +112,21 @@ TEST_CASE("remap", "[remap]") {
       val = dist(gen);
     }
 
-    std::vector<int> x_map_data(total);
-    std::vector<int> y_map_data(total);
+    std::vector<int2> map_data(total);
     for (int row = 0; row < height; ++row) {
       for (int col = 0; col < width; ++col) {
-        int offset         = row * width + col;
-        y_map_data[offset] = height - row - 1;
-        x_map_data[offset] = width - col - 1;
+        int offset       = row * width + col;
+        map_data[offset] = make_int2(width - col - 1, height - row - 1);
       }
     }
 
 
     cuda::gpu_mat<char> input(height, width, input_data.data());
     cuda::gpu_mat<char> output(0, 0);
-    cuda::gpu_mat<int>  x_map(height, width, x_map_data.data());
-    cuda::gpu_mat<int>  y_map(height, width, y_map_data.data());
+    cuda::gpu_mat<int2> map(height, width, map_data.data());
 
 
-    remap(input, output, x_map, y_map, 0, 0, border_value);
+    remap(input, output, map, 0, 0, border_value);
 
 
     std::vector<char> output_data(total);
@@ -172,24 +164,21 @@ TEST_CASE("remap", "[remap]") {
       val = val_dist(gen);
     }
 
-    std::vector<int> x_map_data(total);
-    std::vector<int> y_map_data(total);
+    std::vector<int2> map_data(total);
     for (int row = 0; row < height; ++row) {
       for (int col = 0; col < width; ++col) {
-        int offset         = row * width + col;
-        y_map_data[offset] = map_dist(gen);
-        x_map_data[offset] = map_dist(gen);
+        int offset       = row * width + col;
+        map_data[offset] = make_int2(map_dist(gen), map_dist(gen));
       }
     }
 
 
     cuda::gpu_mat<char> input(height, width, input_data.data());
     cuda::gpu_mat<char> output(0, 0);
-    cuda::gpu_mat<int>  x_map(height, width, x_map_data.data());
-    cuda::gpu_mat<int>  y_map(height, width, y_map_data.data());
+    cuda::gpu_mat<int2> map(height, width, map_data.data());
 
 
-    remap(input, output, x_map, y_map, 0, 0, border_value);
+    remap(input, output, map, 0, 0, border_value);
 
 
     std::vector<char> output_data(total);
@@ -200,8 +189,8 @@ TEST_CASE("remap", "[remap]") {
     for (int row = 0; row < height; ++row) {
       for (int col = 0; col < width; ++col) {
         int  offset     = row * width + col;
-        int  x          = x_map_data[offset];
-        int  y          = y_map_data[offset];
+        int  x          = map_data[offset].x;
+        int  y          = map_data[offset].y;
         char mapped_val = output_data[offset];
 
         if (x >= 0 && x < width && y >= 0 && y < height) {
@@ -214,7 +203,7 @@ TEST_CASE("remap", "[remap]") {
     }
   }
 
-  SECTION("async process matrix in random order") {
+  SECTION("async process matrix in random order with stream") {
     int height = GENERATE(3, 100, 512, 1024, 1153, 2048, 2049);
     int width  = GENERATE(3, 100, 512, 1024, 1352, 2048, 2051);
     int total  = width * height;
@@ -235,13 +224,11 @@ TEST_CASE("remap", "[remap]") {
       val = val_dist(gen);
     }
 
-    std::vector<int> x_map_data(total);
-    std::vector<int> y_map_data(total);
+    std::vector<int2> map_data(total);
     for (int row = 0; row < height; ++row) {
       for (int col = 0; col < width; ++col) {
-        int offset         = row * width + col;
-        y_map_data[offset] = map_dist(gen);
-        x_map_data[offset] = map_dist(gen);
+        int offset       = row * width + col;
+        map_data[offset] = make_int2(map_dist(gen), map_dist(gen));
       }
     }
 
@@ -250,11 +237,10 @@ TEST_CASE("remap", "[remap]") {
 
     cuda::gpu_mat<char> input(height, width, input_data.data(), stream);
     cuda::gpu_mat<char> output(0, 0, stream);
-    cuda::gpu_mat<int>  x_map(height, width, x_map_data.data(), stream);
-    cuda::gpu_mat<int>  y_map(height, width, y_map_data.data(), stream);
+    cuda::gpu_mat<int2> map(height, width, map_data.data(), stream);
 
 
-    remap(input, output, x_map, y_map, 0, 0, border_value, stream);
+    remap(input, output, map, 0, 0, border_value, stream);
 
 
     // XXX async downloading works in other way, so be carefull!
@@ -267,8 +253,8 @@ TEST_CASE("remap", "[remap]") {
     for (int row = 0; row < height; ++row) {
       for (int col = 0; col < width; ++col) {
         int  offset     = row * width + col;
-        int  x          = x_map_data[offset];
-        int  y          = y_map_data[offset];
+        int  x          = map_data[offset].x;
+        int  y          = map_data[offset].y;
         char mapped_val = output_data[offset];
 
         if (x >= 0 && x < width && y >= 0 && y < height) {

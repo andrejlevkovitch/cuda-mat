@@ -7,13 +7,11 @@
 
 
 namespace cuda {
-
 namespace detail {
 template <typename IOType, typename MapType>
 __global__ void remap(const gpu_mat_ptr<IOType>  input,
                       gpu_mat_ptr<IOType>        output,
-                      const gpu_mat_ptr<MapType> map_x,
-                      const gpu_mat_ptr<MapType> map_y,
+                      const gpu_mat_ptr<MapType> map,
                       IOType                     border_value) {
   unsigned int row = 0;
   unsigned int col = 0;
@@ -21,11 +19,11 @@ __global__ void remap(const gpu_mat_ptr<IOType>  input,
   GET_COL_OR_RETURN(input, col);
 
 
-  MapType x = map_x(row, col);
-  MapType y = map_y(row, col);
+  MapType map_vec = map(row, col);
 
-  if (y < input.height() && y >= 0 && x < input.width() && x >= 0) {
-    output(row, col) = input(y, x);
+  if (map_vec.y < input.height() && map_vec.y >= 0 &&
+      map_vec.x < input.width() && map_vec.x >= 0) {
+    output(row, col) = input(map_vec.y, map_vec.x);
   } else {
     output(row, col) = border_value;
   }
@@ -34,42 +32,41 @@ __global__ void remap(const gpu_mat_ptr<IOType>  input,
 
 
 /**\brief remap input matrix to output matrix by map_y and map_x
- * \param map_x x mapping, matrix must have same size as input matrix
- * \param map_y y mapping, matrix must have same size as input matrix
+ * \param map mapping, matrix must have same size as input matrix. Values must
+ * be 2d vectors
  * \param s if stream is not default, then remapping will be asynchronous
  * \param interpolation not used, reserver for future, now uses only nearest
  * mode
  * \param border_mode not used, used only constant border mode
  * \param border_value value for elements, that not present in input
+ * \note by default border_value uses default konstructor, so it don't garantie
+ * that border_value will a zero
  * \see opencv::remap
  */
 template <typename IOType, typename MapType>
 void remap(const gpu_mat<IOType> & input,
            gpu_mat<IOType> &       output,
-           const gpu_mat<MapType> &map_x,
-           const gpu_mat<MapType> &map_y,
+           const gpu_mat<MapType> &map,
            int                     interpolation = 0,
            int                     border_mode   = 0,
-           IOType                  border_value  = 0,
+           IOType                  border_value  = {},
            const stream &          s             = stream{0}) {
-  ASSERT_ARG(map_x.width() == map_y.width() && map_x.height() == map_y.height(),
-             "map_x and map_y has different sizes");
-  ASSERT_ARG(input.width() == map_x.width() && input.height() == map_x.height(),
-             "map_x/y and input has different sizes");
-
-  if (input.width() != output.width() || input.height() != output.height()) {
-    output = gpu_mat<IOType>(input.height(), input.width(), s);
-  }
+  ASSERT_ARG(input.width() == map.width() && input.height() == map.height(),
+             "map and input has different sizes");
 
   if (input.empty()) {
     return;
   }
 
+  if (input.width() != output.width() || input.height() != output.height()) {
+    output = gpu_mat<IOType>(input.height(), input.width(), s);
+  }
+
+
   detail::remap<<<GET_GRID_DIM(input), GET_BLOCK_DIM(input), 0, s.raw()>>>(
       make_gpu_mat_ptr(input),
       make_gpu_mat_ptr(output),
-      make_gpu_mat_ptr(map_x),
-      make_gpu_mat_ptr(map_y),
+      make_gpu_mat_ptr(map),
       border_value);
 }
 } // namespace cuda

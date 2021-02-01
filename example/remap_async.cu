@@ -13,13 +13,21 @@ int main() {
   const cuda::gpu_mat<float> input{3, 3, data.data(), s};
   cuda::gpu_mat<float>       output{3, 3, 0., s};
 
-  std::vector<int>         x_data{2, 1, 0, 2, 1, 0, 2, 1, 0};
-  std::vector<int>         y_data{2, 2, 2, 1, 1, 1, 0, 0, 0};
-  const cuda::gpu_mat<int> map_x{3, 3, x_data.data(), s};
-  const cuda::gpu_mat<int> map_y{3, 3, y_data.data(), s};
+  std::vector<int2> map_data{
+      {2, 2},
+      {1, 2},
+      {0, 2},
+      {2, 1},
+      {1, 1},
+      {0, 1},
+      {2, 0},
+      {1, 0},
+      {0, 0},
+  };
+  const cuda::gpu_mat<int2> map{3, 3, map_data.data(), s};
 
 
-  remap(input, output, map_x, map_y, 0, 0, 0.f, s);
+  remap(input, output, map, 0, 0, 0.f, s);
 
 
   output.download(s);
