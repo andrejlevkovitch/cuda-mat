@@ -4,9 +4,9 @@
 
 #pragma once
 
-#include "exception.hpp"
+#include "cuda/exception.hpp"
+#include "cuda/stream.hpp"
 #include "misc.hpp"
-#include "stream.hpp"
 #include <cstddef>
 #include <cuda_runtime.h>
 

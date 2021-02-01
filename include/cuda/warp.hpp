@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "gpu_mat.hpp"
+#include "cuda/gpu_mat.hpp"
 
 // XXX remove in future
 #include <opencv2/core.hpp>

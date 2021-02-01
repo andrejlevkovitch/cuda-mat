@@ -1,6 +1,6 @@
 // warp_affine.cu
 
-#include "warp.hpp"
+#include "cuda/warp.hpp"
 #include <iostream>
 #include <vector>
 

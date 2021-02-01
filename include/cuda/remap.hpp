@@ -2,8 +2,8 @@
 /**\file
  */
 
-#include "gpu_mat.hpp"
-#include "misc.hpp"
+#include "cuda/gpu_mat.hpp"
+#include "cuda/misc.hpp"
 
 
 namespace cuda {

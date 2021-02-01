@@ -1,6 +1,6 @@
 // remap.cu
 
-#include "remap.hpp"
+#include "cuda/remap.hpp"
 #include <cstdlib>
 #include <iostream>
 #include <vector>

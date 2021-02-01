@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "exception.hpp"
+#include "cuda/exception.hpp"
 #include <stdexcept>
 
 

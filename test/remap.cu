@@ -6,8 +6,7 @@
 //
 
 
-#include "gpu_mat.hpp"
-#include "remap.hpp"
+#include "cuda/remap.hpp"
 #include <random>
 
 TEST_CASE("remap", "[remap]") {

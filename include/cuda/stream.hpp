@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "misc.hpp"
+#include "cuda/misc.hpp"
 #include <cuda_runtime.h>
 
 

@@ -1,6 +1,6 @@
 // simple.cu
 
-#include "gpu_mat.hpp"
+#include "cuda/gpu_mat.hpp"
 #include <cstdlib>
 #include <iostream>
 #include <vector>

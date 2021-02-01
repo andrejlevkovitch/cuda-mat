@@ -5,7 +5,7 @@
 
 //
 
-#include "warp.hpp"
+#include "cuda/warp.hpp"
 #include <iostream>
 #include <random>
 
