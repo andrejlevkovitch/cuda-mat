@@ -124,6 +124,7 @@ void warp(const gpu_mat<IOType> &input,
  * interpolation
  * \param border_mode reserved for future usage, now supports only constant
  * border mode
+ * \warning usage one matrix for input and output produce undefined behavour
  */
 template <typename IOType>
 void warpAffine(const gpu_mat<IOType> &input,
@@ -144,6 +145,7 @@ void warpAffine(const gpu_mat<IOType> &input,
  * interpolation
  * \param border_mode reserved for future usage, now supports only constant
  * border mode
+ * \warning usage one matrix for input and output produce undefined behavour
  */
 template <typename IOType>
 void warpPerspective(const gpu_mat<IOType> &   input,

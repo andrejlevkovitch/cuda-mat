@@ -42,6 +42,7 @@ __global__ void remap(const gpu_mat_ptr<IOType>  input,
  * \note by default border_value uses default konstructor, so it don't garantie
  * that border_value will a zero
  * \see opencv::remap
+ * \warning usage one matrix for input and output produce undefined behaviour
  */
 template <typename IOType, typename MapType>
 void remap(const gpu_mat<IOType> & input,
