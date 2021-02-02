@@ -23,5 +23,6 @@ macro(catch2_test_register TEST_NAME TEST_FILE)
 endmacro()
 
 
-catch2_test_register(test_remap remap.cu)
-catch2_test_register(test_warp warp.cu)
+catch2_test_register(test_remap       remap.cu)
+catch2_test_register(test_warp        warp.cu)
+catch2_test_register(test_arithmetic  arithmetic.cu)
