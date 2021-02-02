@@ -24,3 +24,15 @@ target_link_libraries(bend PRIVATE
   ${PROJECT_NAME}
   ${OpenCV_LIBS}
   )
+
+
+
+
+add_executable(is_dublicates is_dublicates.cu)
+target_include_directories(is_dublicates PRIVATE
+  ${OpenCV_INCLUDE_DIRS}
+  )
+target_link_libraries(is_dublicates PRIVATE
+  ${PROJECT_NAME}
+  ${OpenCV_LIBS}
+  )
