@@ -15,8 +15,8 @@ __global__ void remap(const gpu_mat_ptr<IOType>  input,
                       IOType                     border_value) {
   unsigned int row = 0;
   unsigned int col = 0;
-  GET_ROW_OR_RETURN(input, row);
-  GET_COL_OR_RETURN(input, col);
+  GET_ROW_OR_RETURN(output, row);
+  GET_COL_OR_RETURN(output, col);
 
 
   MapType map_vec = map(row, col);
@@ -52,19 +52,16 @@ void remap(const gpu_mat<IOType> & input,
            int                     border_mode   = 0,
            IOType                  border_value  = {},
            const stream &          s             = stream{0}) {
-  ASSERT_ARG(input.width() == map.width() && input.height() == map.height(),
-             "map and input has different sizes");
+  if (map.width() != output.width() || map.height() != output.height()) {
+    output = gpu_mat<IOType>(map.height(), map.width(), s);
+  }
 
-  if (input.empty()) {
+  if (output.empty()) {
     return;
   }
 
-  if (input.width() != output.width() || input.height() != output.height()) {
-    output = gpu_mat<IOType>(input.height(), input.width(), s);
-  }
 
-
-  detail::remap<<<GET_GRID_DIM(input), GET_BLOCK_DIM(input), 0, s.raw()>>>(
+  detail::remap<<<GET_GRID_DIM(output), GET_BLOCK_DIM(output), 0, s.raw()>>>(
       make_gpu_mat_ptr(input),
       make_gpu_mat_ptr(output),
       make_gpu_mat_ptr(map),

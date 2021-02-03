@@ -25,11 +25,12 @@ SCENARIO("remap", "[remap]") {
   }
 
   GIVEN("not empty matrix size and random data for matrix") {
-    int height = GENERATE(3, 100, 512, 1024, 1153, 2048, 2049);
-    int width  = GENERATE(3, 100, 512, 1024, 1352, 2048, 2051);
-    int total  = width * height;
+    int height        = GENERATE(3, 100, 1024, 1153, 2049);
+    int width         = GENERATE(3, 100, 1024, 1352, 2051);
+    int output_height = GENERATE(3, 100, 1024, 1153, 2049);
+    int output_width  = GENERATE(3, 100, 1024, 1352, 2051);
 
-    char border_value = GENERATE(0, 1, 16, 117, -52, -34);
+    char border_value = 0;
 
 
     std::random_device                  rd;
@@ -37,18 +38,18 @@ SCENARIO("remap", "[remap]") {
     std::uniform_int_distribution<char> dist{-128, 127};
 
 
-    std::vector<char> input_data(total);
+    std::vector<char> input_data(height * width);
     for (char &val : input_data) {
       val = dist(gen);
     }
 
 
-    AND_GIVEN("sunc pipeline matricies") {
+    AND_GIVEN("sync pipeline matricies") {
       cuda::gpu_mat<char> input(height, width, input_data.data());
       cuda::gpu_mat<char> output(0, 0);
 
       AND_GIVEN("map with values outside of input matrix") {
-        cuda::gpu_mat<int2> map(height, width, {-1, -1});
+        cuda::gpu_mat<int2> map(output_height, output_width, {-1, -1});
 
 
         WHEN("remap") {
@@ -56,7 +57,8 @@ SCENARIO("remap", "[remap]") {
           remap(input, output, map, 0, 0, border_value);
 
           THEN("entire output must be equal to border value") {
-            std::vector<decltype(output)::value_type> output_v(total);
+            std::vector<decltype(output)::value_type> output_v(output_height *
+                                                               output_width);
             output.download(output_v.data());
 
             auto found = std::find_if(output_v.begin(),
@@ -74,41 +76,53 @@ SCENARIO("remap", "[remap]") {
       }
 
       AND_GIVEN("map with same order") {
-        std::vector<int2> map_data(total);
-        for (int row = 0; row < height; ++row) {
-          for (int col = 0; col < width; ++col) {
-            int offset       = row * width + col;
+        std::vector<int2> map_data(output_height * output_width);
+        for (int row = 0; row < output_height; ++row) {
+          for (int col = 0; col < output_width; ++col) {
+            int offset       = row * output_width + col;
             map_data[offset] = make_int2(col, row);
           }
         }
 
-        cuda::gpu_mat<int2> map(height, width, map_data.data());
+        cuda::gpu_mat<int2> map(output_height, output_width, map_data.data());
 
 
         WHEN("remap") {
           remap(input, output, map, 0, 0, border_value);
 
 
-          THEN("input must be equal to output") {
-            std::vector<char> output_data(total);
+          THEN("input must be equal to output at intersection, and all outside "
+               "of intersection must be equal to border value") {
+            std::vector<char> output_data(output_height * output_width);
             output.download(output_data.data());
 
+            for (int row = 0; row < output_height; ++row) {
+              for (int col = 0; col < output_width; ++col) {
+                size_t output_offset = row * output_width + col;
+                size_t input_offset  = row * width + col;
 
-            CHECK(input_data == output_data);
+                if (row < height && col < width) {
+                  REQUIRE(output_data[output_offset] ==
+                          input_data[input_offset]);
+                } else {
+                  REQUIRE(output_data[output_offset] == border_value);
+                }
+              }
+            }
           }
         }
       }
 
       AND_GIVEN("map with revert order") {
-        std::vector<int2> map_data(total);
-        for (int row = 0; row < height; ++row) {
-          for (int col = 0; col < width; ++col) {
-            int offset       = row * width + col;
+        std::vector<int2> map_data(output_height * output_width);
+        for (int row = 0; row < output_height; ++row) {
+          for (int col = 0; col < output_width; ++col) {
+            int offset       = row * output_width + col;
             map_data[offset] = make_int2(width - col - 1, height - row - 1);
           }
         }
 
-        cuda::gpu_mat<int2> map(height, width, map_data.data());
+        cuda::gpu_mat<int2> map(output_height, output_width, map_data.data());
 
 
         WHEN("remap") {
@@ -116,17 +130,24 @@ SCENARIO("remap", "[remap]") {
 
 
           THEN("check revert order of output") {
-            std::vector<char> output_data(total);
+            std::vector<char> output_data(output_height * output_width);
             output.download(output_data.data());
 
 
-            for (int row = 0; row < height; ++row) {
-              for (int col = 0; col < width; ++col) {
-                int offset = row * width + col;
-                int mapped_offset =
-                    (height - row - 1) * width + (width - col - 1);
+            for (int row = 0; row < output_height; ++row) {
+              for (int col = 0; col < output_width; ++col) {
+                size_t output_offset = row * output_width + col;
 
-                REQUIRE(input_data[offset] == output_data[mapped_offset]);
+                size_t input_row    = (height - row - 1);
+                size_t input_col    = (width - col - 1);
+                size_t input_offset = input_row * width + input_col;
+
+                if (input_row < height && input_col < width) {
+                  REQUIRE(input_data[input_offset] ==
+                          output_data[output_offset]);
+                } else {
+                  REQUIRE(border_value == output_data[output_offset]);
+                }
               }
             }
           }
@@ -138,15 +159,12 @@ SCENARIO("remap", "[remap]") {
             -10,
             height > width ? height + 10 : width + 10};
 
-        std::vector<int2> map_data(total);
-        for (int row = 0; row < height; ++row) {
-          for (int col = 0; col < width; ++col) {
-            int offset       = row * width + col;
-            map_data[offset] = make_int2(map_dist(gen), map_dist(gen));
-          }
+        std::vector<int2> map_data(output_width * output_height);
+        for (int2 &val : map_data) {
+          val = make_int2(map_dist(gen), map_dist(gen));
         }
 
-        cuda::gpu_mat<int2> map(height, width, map_data.data());
+        cuda::gpu_mat<int2> map(output_height, output_width, map_data.data());
 
 
         WHEN("remap") {
@@ -154,17 +172,17 @@ SCENARIO("remap", "[remap]") {
 
 
           THEN("check output") {
-            std::vector<char> output_data(total);
+            std::vector<char> output_data(output_width * output_height);
             output.download(output_data.data());
 
 
             // check
-            for (int row = 0; row < height; ++row) {
-              for (int col = 0; col < width; ++col) {
-                int  offset     = row * width + col;
-                int  x          = map_data[offset].x;
-                int  y          = map_data[offset].y;
-                char mapped_val = output_data[offset];
+            for (int row = 0; row < output_height; ++row) {
+              for (int col = 0; col < output_width; ++col) {
+                int output_offset = row * output_width + col;
+                int x             = map_data[output_offset].x;
+                int y             = map_data[output_offset].y;
+                int mapped_val    = output_data[output_offset];
 
                 if (x >= 0 && x < width && y >= 0 && y < height) {
                   int orig_val = input_data[y * width + x];
@@ -189,15 +207,15 @@ SCENARIO("remap", "[remap]") {
             -10,
             height > width ? height + 10 : width + 10};
 
-        std::vector<int2> map_data(total);
-        for (int row = 0; row < height; ++row) {
-          for (int col = 0; col < width; ++col) {
-            int offset       = row * width + col;
-            map_data[offset] = make_int2(map_dist(gen), map_dist(gen));
-          }
+        std::vector<int2> map_data(output_height * output_width);
+        for (int2 &val : map_data) {
+          val = make_int2(map_dist(gen), map_dist(gen));
         }
 
-        cuda::gpu_mat<int2> map(height, width, map_data.data(), stream);
+        cuda::gpu_mat<int2> map(output_height,
+                                output_width,
+                                map_data.data(),
+                                stream);
 
 
         WHEN("remap") {
@@ -212,12 +230,12 @@ SCENARIO("remap", "[remap]") {
 
 
             // check
-            for (int row = 0; row < height; ++row) {
-              for (int col = 0; col < width; ++col) {
-                int  offset     = row * width + col;
-                int  x          = map_data[offset].x;
-                int  y          = map_data[offset].y;
-                char mapped_val = output_data[offset];
+            for (int row = 0; row < output_height; ++row) {
+              for (int col = 0; col < output_width; ++col) {
+                int output_offset = row * output_width + col;
+                int x             = map_data[output_offset].x;
+                int y             = map_data[output_offset].y;
+                int mapped_val    = output_data[output_offset];
 
                 if (x >= 0 && x < width && y >= 0 && y < height) {
                   int orig_val = input_data[y * width + x];
